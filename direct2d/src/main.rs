@@ -70,7 +70,7 @@ impl Window {
 
         let mut dpi = 0.0;
         let mut dpiy = 0.0;
-        unsafe { factory.GetDesktopDpi(&mut dpi, &mut dpiy) };
+        unsafe { factory.cast::<ID2D1Factory>().GetDesktopDpi(&mut dpi, &mut dpiy) };
 
         let mut frequency = 0;
         unsafe { QueryPerformanceFrequency(&mut frequency).ok()? };
@@ -107,7 +107,7 @@ impl Window {
         if self.target.is_none() {
             let device = create_device()?;
             let target = create_render_target(&self.factory, &device)?;
-            unsafe { target.SetDpi(self.dpi, self.dpi) };
+            unsafe { target.cast::<ID2D1RenderTarget>().SetDpi(self.dpi, self.dpi) };
 
             let swapchain = create_swapchain(&device, self.handle)?;
             create_swapchain_bitmap(&swapchain, &target)?;
@@ -119,11 +119,11 @@ impl Window {
         }
 
         let target = self.target.as_ref().unwrap();
-        unsafe { target.BeginDraw() };
+        unsafe { target.cast::<ID2D1RenderTarget>().BeginDraw() };
         self.draw(target)?;
 
         unsafe {
-            target.EndDraw(std::ptr::null_mut(), std::ptr::null_mut())?;
+            target.cast::<ID2D1RenderTarget>().EndDraw(std::ptr::null_mut(), std::ptr::null_mut())?;
         }
 
         if let Err(error) = self.present(1, 0) {
@@ -154,7 +154,7 @@ impl Window {
     }
 
     fn present(&self, sync: u32, flags: u32) -> Result<()> {
-        unsafe { self.swapchain.as_ref().unwrap().Present(sync, flags) }
+        unsafe { self.swapchain.as_ref().unwrap().cast::<IDXGISwapChain>().Present(sync, flags) }
     }
 
     fn draw(&self, target: &ID2D1DeviceContext) -> Result<()> {
@@ -164,7 +164,7 @@ impl Window {
         unsafe {
             self.manager.Update(get_time(self.frequency)?)?;
 
-            target.Clear(&D2D1_COLOR_F {
+            target.cast::<ID2D1RenderTarget>().Clear(&D2D1_COLOR_F {
                 r: 1.0,
                 g: 1.0,
                 b: 1.0,
@@ -174,10 +174,10 @@ impl Window {
             let mut previous = None;
             target.GetTarget(&mut previous);
             target.SetTarget(clock);
-            target.Clear(std::ptr::null());
+            target.cast::<ID2D1RenderTarget>().Clear(std::ptr::null());
             self.draw_clock()?;
             target.SetTarget(previous);
-            target.SetTransform(&Matrix3x2::translation(5.0, 5.0));
+            target.cast::<ID2D1RenderTarget>().SetTransform(&Matrix3x2::translation(5.0, 5.0));
 
             let mut output = None;
             shadow.GetOutput(&mut output);
@@ -190,7 +190,7 @@ impl Window {
                 D2D1_COMPOSITE_MODE_SOURCE_OVER,
             );
 
-            target.SetTransform(&Matrix3x2::identity());
+            target.cast::<ID2D1RenderTarget>().SetTransform(&Matrix3x2::identity());
 
             target.DrawImage(
                 clock,
@@ -208,11 +208,11 @@ impl Window {
         let target = self.target.as_ref().unwrap();
         let brush = self.brush.as_ref().unwrap();
 
-        let size = unsafe { target.GetSize() };
+        let size = unsafe { target.cast::<ID2D1RenderTarget>().GetSize() };
 
         let radius = size.width.min(size.height).max(200.0) / 2.0 - 50.0;
         let translation = Matrix3x2::translation(size.width / 2.0, size.height / 2.0);
-        unsafe { target.SetTransform(&translation) };
+        unsafe { target.cast::<ID2D1RenderTarget>().SetTransform(&translation) };
 
         let ellipse = D2D1_ELLIPSE {
             point: D2D_POINT_2F::default(),
@@ -221,7 +221,7 @@ impl Window {
         };
 
         let swing = unsafe {
-            target.DrawEllipse(&ellipse, brush, radius / 20.0, None);
+            target.cast::<ID2D1RenderTarget>().DrawEllipse(&ellipse, brush, radius / 20.0, None);
             self.variable.GetValue()?
         };
         let mut angles = Angles::now();
@@ -243,9 +243,9 @@ impl Window {
         }
 
         unsafe {
-            target.SetTransform(&(Matrix3x2::rotation(angles.second, 0.0, 0.0) * &translation));
+            target.cast::<ID2D1RenderTarget>().SetTransform(&(Matrix3x2::rotation(angles.second, 0.0, 0.0) * &translation));
 
-            target.DrawLine(
+            target.cast::<ID2D1RenderTarget>().DrawLine(
                 D2D_POINT_2F::default(),
                 D2D_POINT_2F {
                     x: 0.0,
@@ -256,9 +256,9 @@ impl Window {
                 &self.style,
             );
 
-            target.SetTransform(&(Matrix3x2::rotation(angles.minute, 0.0, 0.0) * &translation));
+            target.cast::<ID2D1RenderTarget>().SetTransform(&(Matrix3x2::rotation(angles.minute, 0.0, 0.0) * &translation));
 
-            target.DrawLine(
+            target.cast::<ID2D1RenderTarget>().DrawLine(
                 D2D_POINT_2F::default(),
                 D2D_POINT_2F {
                     x: 0.0,
@@ -269,9 +269,9 @@ impl Window {
                 &self.style,
             );
 
-            target.SetTransform(&(Matrix3x2::rotation(angles.hour, 0.0, 0.0) * &translation));
+            target.cast::<ID2D1RenderTarget>().SetTransform(&(Matrix3x2::rotation(angles.hour, 0.0, 0.0) * &translation));
 
-            target.DrawLine(
+            target.cast::<ID2D1RenderTarget>().DrawLine(
                 D2D_POINT_2F::default(),
                 D2D_POINT_2F {
                     x: 0.0,
@@ -296,7 +296,7 @@ impl Window {
     }
 
     fn create_clock(&self, target: &ID2D1DeviceContext) -> Result<ID2D1Bitmap1> {
-        let size_f = unsafe { target.GetSize() };
+        let size_f = unsafe { target.cast::<ID2D1RenderTarget>().GetSize() };
 
         let size_u = D2D_SIZE_U {
             width: (size_f.width * self.dpi / 96.0) as u32,
@@ -314,7 +314,7 @@ impl Window {
             colorContext: None,
         };
 
-        unsafe { target.CreateBitmap2(size_u, std::ptr::null(), 0, &properties) }
+        unsafe { target.CreateBitmap(size_u, std::ptr::null(), 0, &properties) }
     }
 
     fn resize_swapchain_bitmap(&mut self) -> Result<()> {
@@ -323,7 +323,7 @@ impl Window {
             unsafe { target.SetTarget(None) };
 
             if unsafe {
-                swapchain
+                swapchain.cast::<IDXGISwapChain>()
                     .ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0)
                     .is_ok()
             } {
@@ -487,7 +487,7 @@ fn create_brush(target: &ID2D1DeviceContext) -> Result<ID2D1SolidColorBrush> {
         transform: Matrix3x2::identity(),
     };
 
-    unsafe { target.CreateSolidColorBrush(&color, &properties) }
+    unsafe { target.cast::<ID2D1RenderTarget>().CreateSolidColorBrush(&color, &properties) }
 }
 
 fn create_shadow(target: &ID2D1DeviceContext, clock: &ID2D1Bitmap1) -> Result<ID2D1Effect> {
@@ -526,7 +526,7 @@ fn create_style(factory: &ID2D1Factory1) -> Result<ID2D1StrokeStyle> {
         ..Default::default()
     };
 
-    unsafe { factory.CreateStrokeStyle(&props, std::ptr::null(), 0) }
+    unsafe { factory.cast::<ID2D1Factory>().CreateStrokeStyle(&props, std::ptr::null(), 0) }
 }
 
 fn create_transition() -> Result<IUIAnimationTransition> {
@@ -580,7 +580,7 @@ fn create_render_target(
     device: &ID3D11Device,
 ) -> Result<ID2D1DeviceContext> {
     unsafe {
-        let d2device = factory.CreateDevice(device.cast::<IDXGIDevice>()?)?;
+        let d2device = factory.CreateDevice(device.try_cast::<IDXGIDevice>()?)?;
 
         let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
 
@@ -591,12 +591,12 @@ fn create_render_target(
 }
 
 fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
-    let dxdevice = device.cast::<IDXGIDevice>()?;
-    unsafe { dxdevice.GetAdapter()?.GetParent() }
+    let dxdevice = device.try_cast::<IDXGIDevice>()?;
+    unsafe { dxdevice.GetAdapter()?.cast::<IDXGIObject>().GetParent() }
 }
 
 fn create_swapchain_bitmap(swapchain: &IDXGISwapChain1, target: &ID2D1DeviceContext) -> Result<()> {
-    let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0)? };
+    let surface: IDXGISurface = unsafe { swapchain.cast::<IDXGISwapChain>().GetBuffer(0)? };
 
     let props = D2D1_BITMAP_PROPERTIES1 {
         pixelFormat: D2D1_PIXEL_FORMAT {
